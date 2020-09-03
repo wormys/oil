@@ -7,6 +7,8 @@ from utils.handler import getData_task
 from model.net import Net
 import matplotlib.pyplot as plt
 import csv
+import time
+from tensorboardX import SummaryWriter
 import pandas as pd
 import os
 plt.rcParams['font.sans-serif']='Times New Roman'
@@ -20,16 +22,19 @@ def main():
     train_Loader,test_Loader= getData_task(train_file, test_file)
     test_loss = []
     train_loss = []
-    net = Net(17, 100, 40, 1)
+    net = Net(16, 100, 40, 1)
     optimizer = torch.optim.Adam(net.parameters(), lr=0.01)
     loss_func = torch.nn.MSELoss()
     #plt.show()
+    timestamp=time.strftime('%Y-%m-%d-%H-%M-%S',time.localtime(time.time()))
+    writer=SummaryWriter('./log/events'+timestamp+'task_2')
     # train
+    iter=1
     net.train()
     for epoch in range(10):
         for step,data in enumerate(train_Loader):
-            x= data[:, 5:]
-            y= data[:, 4]
+            x= data[:, 6:]
+            y= data[:, 5]
             prediction = net(x).reshape(50)
             # print(y,y.shape,prediction.shape)
             # print(y,prediction)
@@ -38,15 +43,17 @@ def main():
             loss.backward()
             optimizer.step()
             train_loss.append(loss.item())
+            iter+=1
+            writer.add_scalar('train_loss',loss.item(),iter)
         # print(train_loss)
     # save only the parameters
     torch.save(net.state_dict(), 'pkl/task2_params.pkl')
     net.eval()
     MSE=0
     for step,data1 in enumerate(test_Loader):
-        x = data1[:, 5:]
-        y = data1[:, 4]
-        prediction = net(x).reshape(50)
+        x = data1[:, 6:]
+        y = data1[:, 5]
+        prediction = net(x).reshape(x.shape[0])
         # print(prediction,prediction.shape)
         # # Visualization
         # pca=PCA(n_components=1)
@@ -55,6 +62,7 @@ def main():
         # print(pca.explained_variance_ratio_)
         MSE = loss_func(prediction, y)
         test_loss.append(MSE.item())
+        writer.add_scalar('test_MSE', MSE.item(), step)
     to_csv(save_train_file,train_loss)
     to_csv(save_test_file,test_loss)
 

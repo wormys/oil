@@ -7,6 +7,8 @@ from model.net import Net
 import pandas as pd
 import matplotlib.pyplot as plt
 import csv
+import time
+from tensorboardX import SummaryWriter
 plt.rcParams['font.sans-serif']='Times New Roman'
 plt.rcParams['font.size']=18
 
@@ -19,28 +21,33 @@ def main():
     train_loss = []
     train_Loader,test_Loader = getData_task(train_file, test_file)
     #print(test_Loader)
-    net = Net(4, 100, 50, 17)
+    net = Net(5, 100, 50, 16)
     optimizer = torch.optim.Adam(net.parameters(), lr=0.01)
     loss_func = torch.nn.MSELoss()
+    timestamp = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    writer = SummaryWriter('./log/events' + timestamp + 'task_1')
     net.train()
+    iter=0
     for epoch in range(10):
         for step,data in enumerate(train_Loader):
-            x=data[:, :4]
-            y=data[:, 5:]
+            x=data[:, :5]
+            y=data[:, 6:]
             prediction = net(x)
             loss = loss_func(prediction, y)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             train_loss.append(loss.item())
+            iter+=1
+            writer.add_scalar('train_loss',loss.item(),iter)
         # print(train_loss)
     # save only the parameters
     torch.save(net.state_dict(), 'pkl/task1_params.pkl')
     net.eval()
     MSE = 0
     for step, data1 in enumerate(test_Loader):
-        x = data1[:, :4]
-        y = data1[:, 5:]
+        x = data1[:, :5]
+        y = data1[:, 6:]
         prediction = net(x)
         # print(prediction,prediction.shape)
         # # Visualization
@@ -50,6 +57,7 @@ def main():
         # print(pca.explained_variance_ratio_)
         MSE = loss_func(prediction, y)
         test_loss.append(MSE.item())
+        writer.add_scalar('test_MSE', MSE.item(), step)
     to_csv(save_train_file, train_loss)
     to_csv(save_test_file, test_loss)
 
